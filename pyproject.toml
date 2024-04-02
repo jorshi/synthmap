@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["synthmap"]
+
+[project]
+name = "synthmap"
+version = "0.0.1"
+dependencies = [
+    "einops",
+    "jsonargparse[signatures]>=4.18.0",
+    "lightning",
+    "matplotlib",
+    "numpy",
+    "torch",
+    "torchaudio",
+]
+
+[project.scripts]
+
+[project.optional-dependencies]
+dev = [
+    "black[jupyter]",
+    "flake8",
+    "pytest",
+    "pytest-mock",
+    "pre-commit",
+    "pytest-cov",
+    "nbstripout",
+    "ipywidgets",
+]
