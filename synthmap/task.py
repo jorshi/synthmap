@@ -7,7 +7,7 @@ from typing import Tuple
 import lightning as L
 import torch
 
-from synthmap.model import AutoEncoder
+from synthmap.models.autoencoder import AutoEncoder
 from synthmap.params import DiscretizedNumericalParameters
 
 
@@ -49,15 +49,17 @@ class SynthMapTask(L.LightningModule):
         else:
             audio, preset = batch
 
-        # Create a discretized representation of the parameters
-        if self.param_discretizer is not None:
-            y = self.param_discretizer.discretize(preset)
-
+        # Forward pass
         y_hat, z, kl = self(preset)
 
         # Group the parameters back into (batch, class, parameter) if discretized
+        # Discretize the target parameters for loss
         if self.param_discretizer is not None:
+            y = self.param_discretizer.discretize(preset)
             y_hat = self.param_discretizer.group_parameters(y_hat)
+        else:
+            # Otherwise, the target is the same as the input
+            y = preset
 
         # Preset reconstruction loss
         reconstruction = self.loss_fn(y_hat, y)

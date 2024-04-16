@@ -1,7 +1,7 @@
-class_path: synthmap.model.AutoEncoder
+class_path: synthmap.models.autoencoder.AutoEncoder
 init_args:
   encoder:
-    class_path: synthmap.model.MLP
+    class_path: synthmap.models.mlp.MLP
     init_args:
       in_size: 14
       hidden_size: 256
@@ -11,7 +11,7 @@ init_args:
       layer_norm: true
       init_std: 0.1
   decoder:
-    class_path: synthmap.model.MLP
+    class_path: synthmap.models.mlp.MLP
     init_args:
       in_size: 16
       hidden_size: 256
