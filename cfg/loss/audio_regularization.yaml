@@ -1,0 +1,7 @@
+class_path: synthmap.loss.AudioLatentRegularizer
+init_args:
+  transform: "mel"
+  sample_rate: 48000
+  n_fft: 2048
+  hop_length: 512
+  n_mels: 128
