@@ -1,12 +1,14 @@
 """
 SynthMap Learn a VAE model on synth presets
 """
+from typing import Optional
 from typing import Tuple
 
 import lightning as L
 import torch
 
 from synthmap.model import AutoEncoder
+from synthmap.params import DiscretizedNumericalParameters
 
 
 class SynthMapTask(L.LightningModule):
@@ -20,12 +22,15 @@ class SynthMapTask(L.LightningModule):
     def __init__(
         self,
         autoencoder: AutoEncoder,
+        param_discretizer: Optional[DiscretizedNumericalParameters] = None,
+        loss_fn: torch.nn.Module = torch.nn.MSELoss(),
         lr: float = 1e-3,
     ) -> None:
         super().__init__()
         self.autoencoder = autoencoder
         self.lr = lr
-        self.loss_fn = torch.nn.MSELoss()
+        self.loss_fn = loss_fn
+        self.param_discretizer = param_discretizer
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.autoencoder(x)
@@ -42,10 +47,18 @@ class SynthMapTask(L.LightningModule):
         else:
             _, preset = batch
 
-        y, z, kl = self(preset)
+        # Create a discretized representation of the parameters
+        if self.param_discretizer is not None:
+            y = self.param_discretizer.discretize(preset)
+
+        y_hat, z, kl = self(preset)
+
+        # Group the parameters back into (batch, class, parameter) if discretized
+        if self.param_discretizer is not None:
+            y_hat = self.param_discretizer.group_parameters(y_hat)
 
         # Preset reconstruction loss
-        reconstruction = self.loss_fn(y, preset)
+        reconstruction = self.loss_fn(y_hat, y)
 
         loss = {
             "reconstruction": reconstruction,
