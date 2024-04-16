@@ -8,6 +8,7 @@ model:
       init_args:
         num_params: 14
         steps_per_param: 32
+    audio_regularizer: loss/audio_regularization.yaml
 optimizer:
   class_path: torch.optim.Adam
   init_args:
