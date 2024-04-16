@@ -1,0 +1,11 @@
+class_path: synthmap.data.SynthesizerDataModule
+init_args:
+  synth:
+    class_path: synthmap.synth.Snare808
+    init_args:
+      sample_rate: 48000
+      num_samples: 48000
+  batch_size: 64
+  num_train: 100000
+  num_val: 1000
+  return_sound: true

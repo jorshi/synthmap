@@ -78,10 +78,11 @@ class SynthesizerDataModule(L.LightningDataModule):
             self.train_dataset = SynthesizerDataset(
                 self.synth, self.num_train, self.seed, self.return_sound
             )
-        elif stage == "validate":
+
+        if stage in ["fit", "validate"]:
             seed = self.seed + self.num_train
             self.val_dataset = SynthesizerDataset(
-                self.synth, self.num_train, seed, self.return_sound
+                self.synth, self.num_val, seed, self.return_sound
             )
         elif stage == "test":
             seed = self.seed + self.num_train + self.num_val

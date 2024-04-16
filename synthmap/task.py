@@ -64,10 +64,12 @@ class SynthMapTask(L.LightningModule):
             "reconstruction": reconstruction,
             "kl": kl,
         }
+        summed_loss = self.summed_losses(loss)
+        loss["loss"] = summed_loss
 
         # Log the loss and return the summed loss
         self.log_loss(loss, stage)
-        return self.summed_losses(loss)
+        return summed_loss
 
     def training_step(self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int):
         return self._do_step(batch, "train")
@@ -81,7 +83,8 @@ class SynthMapTask(L.LightningModule):
     def log_loss(self, loss: dict, prefix: str):
         for key, value in loss.items():
             if value is not None:
-                self.log(f"{prefix}/{key}", value, on_epoch=True, prog_bar=True)
+                prog_bar = key == "loss"
+                self.log(f"{prefix}/{key}", value, on_epoch=True, prog_bar=prog_bar)
 
     def summed_losses(self, losses: dict):
         return sum([loss for loss in losses.values() if loss is not None])
