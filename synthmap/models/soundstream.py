@@ -133,6 +133,7 @@ class SoundStreamEncoder(nn.Module):
         film_embedding_size: int = 128,
         film_batch_norm: bool = False,
         transpose_output: bool = False,
+        time_average: bool = False,
     ):
         super().__init__()
 
@@ -162,6 +163,7 @@ class SoundStreamEncoder(nn.Module):
             nn.Conv1d(hidden_channels, output_channels, 3, padding=0),
         )
         self.transpose_output = transpose_output
+        self.time_average = time_average
 
     def forward(
         self, x: torch.Tensor, film_embedding: Optional[torch.Tensor] = None
@@ -171,12 +173,18 @@ class SoundStreamEncoder(nn.Module):
         for encoder_block in self.encoder_blocks:
             x = encoder_block(x, film_embedding)
 
+        x = self.output(x)
         if self.transpose_output:
             x = self.output(x)
             x = rearrange(x, "b c t -> b t c")
+            if self.time_average:
+                x = x.mean(dim=1)
             return x
 
-        return self.output(x)
+        if self.time_average:
+            x = x.mean(dim=-1)
+
+        return x
 
 
 class SoundStreamAttentionEncoder(nn.Module):

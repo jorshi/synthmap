@@ -7,7 +7,6 @@ from typing import Tuple
 import lightning as L
 import torch
 
-from synthmap.models.autoencoder import AutoEncoder
 from synthmap.params import DiscretizedNumericalParameters
 
 
@@ -21,21 +20,53 @@ class SynthMapTask(L.LightningModule):
 
     def __init__(
         self,
-        autoencoder: AutoEncoder,
+        param_encoder: Optional[torch.nn.Module] = None,
+        audio_encoder: Optional[torch.nn.Module] = None,
+        param_decoder: Optional[torch.nn.Module] = None,
+        bottleneck: Optional[torch.nn.Module] = None,
         param_discretizer: Optional[DiscretizedNumericalParameters] = None,
         loss_fn: torch.nn.Module = torch.nn.MSELoss(),
         audio_regularizer: Optional[torch.nn.Module] = None,
         lr: float = 1e-3,
     ) -> None:
         super().__init__()
-        self.autoencoder = autoencoder
-        self.lr = lr
-        self.loss_fn = loss_fn
+        self.param_encoder = param_encoder
+        self.audio_encoder = audio_encoder
+        self.param_decoder = param_decoder
+        self.bottleneck = bottleneck
         self.param_discretizer = param_discretizer
+        self.loss_fn = loss_fn
         self.audio_regularizer = audio_regularizer
+        self.lr = lr
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.autoencoder(x)
+    def forward(
+        self,
+        params: Optional[torch.Tensor] = None,
+        audio: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+        """
+        Forward pass through the model.
+        Can receive either parameters or audio, but not both.
+        """
+        if bool(params is not None) == bool(audio is not None):
+            raise ValueError("One of params or audio must be provided")
+
+        # Encode the parameters or audio
+        if params is not None:
+            z = self.param_encoder(params)
+        else:
+            z = self.audio_encoder(audio[:, None, :])
+
+        # Bottleneck
+        reg = None
+        if self.bottleneck is not None:
+            z, reg = self.bottleneck(z)
+
+        # Decode the parameters
+        param_hat = self.param_decoder(z)
+
+        # Return the raw parameters, the latent space, and the regularization term
+        return param_hat, z, reg
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
@@ -45,35 +76,42 @@ class SynthMapTask(L.LightningModule):
 
     def _do_step(self, batch: Tuple[torch.Tensor, torch.Tensor], stage: str):
         if len(batch) == 1:
-            preset = batch[0]
+            params = batch[0]
         else:
-            audio, preset = batch
+            audio, params = batch
 
-        # Forward pass
-        y_hat, z, kl = self(preset)
+        # Do a parameter forward pass if we have a parameter encoder
+        loss = {}
+        if self.param_encoder is not None:
+            y_hat, z, kl = self(params=params)
 
-        # Group the parameters back into (batch, class, parameter) if discretized
-        # Discretize the target parameters for loss
-        if self.param_discretizer is not None:
-            y = self.param_discretizer.discretize(preset)
-            y_hat = self.param_discretizer.group_parameters(y_hat)
-        else:
-            # Otherwise, the target is the same as the input
-            y = preset
+            y = params
+            if self.param_discretizer is not None:
+                y = self.param_discretizer.discretize(y)
+                y_hat = self.param_discretizer.group_parameters(y_hat)
 
-        # Preset reconstruction loss
-        reconstruction = self.loss_fn(y_hat, y)
+            reconstruction = self.loss_fn(y_hat, y)
+            loss["param_recon"] = reconstruction
+            loss["param_kl"] = kl
 
-        loss = {
-            "reconstruction": reconstruction,
-            "kl": kl,
-        }
+        # Do an audio forward pass if we have an audio encoder
+        if self.audio_encoder is not None:
+            y_hat, z, kl = self(audio=audio)
+
+            y = params
+            if self.param_discretizer is not None:
+                y = self.param_discretizer.discretize(y)
+                y_hat = self.param_discretizer.group_parameters(y_hat)
+
+            reconstruction = self.loss_fn(y_hat, y)
+            loss["audio_recon"] = reconstruction
+            loss["audio_kl"] = kl
 
         # Regularize the latent space to vary according to the audio metric
-        if self.audio_regularizer is not None:
-            assert len(batch) == 2, "Audio must be provided for audio regularization"
-            audio_loss = self.audio_regularizer(audio, z)
-            loss["audio_reg"] = audio_loss
+        # if self.audio_regularizer is not None:
+        #     assert len(batch) == 2, "Audio must be provided for audio regularization"
+        #     audio_loss = self.audio_regularizer(audio, z)
+        #     loss["audio_reg"] = audio_loss
 
         summed_loss = self.summed_losses(loss)
         loss["loss"] = summed_loss

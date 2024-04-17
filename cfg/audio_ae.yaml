@@ -1,0 +1,21 @@
+model:
+  class_path: synthmap.task.SynthMapTask
+  init_args:
+    audio_encoder: models/soundstream_att_enc.yaml
+    param_decoder: models/param_decoder_mlp_32in.yaml
+    loss_fn: torch.nn.MSELoss
+    # param_discretizer:
+    #   class_path: synthmap.params.DiscretizedNumericalParameters
+    #   init_args:
+    #     num_params: 14
+    #     steps_per_param: 32
+optimizer:
+  class_path: torch.optim.Adam
+  init_args:
+    lr: 0.001
+data: data/snare_808.yaml
+trainer:
+  devices: 1
+  accelerator: gpu
+  max_epochs: 250
+seed_everything: 3608013887

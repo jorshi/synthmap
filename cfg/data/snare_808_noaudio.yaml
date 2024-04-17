@@ -5,7 +5,7 @@ init_args:
     init_args:
       sample_rate: 48000
       num_samples: 48000
-  batch_size: 32
+  batch_size: 64
   num_train: 100000
   num_val: 1000
-  return_sound: true
+  return_sound: false
