@@ -13,7 +13,7 @@ optimizer:
   class_path: torch.optim.Adam
   init_args:
     lr: 0.001
-data: data/snare_808.yaml
+data: data/gpu_808.yaml
 trainer:
   devices: 1
   accelerator: gpu
@@ -29,4 +29,6 @@ trainer:
       job_type: train
       group: synthmap
       entity: jordieshier
+  # callbacks:
+  # - class_path: lightning.pytorch.callbacks.BatchSizeFinder
 seed_everything: 3608013887

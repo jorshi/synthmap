@@ -115,3 +115,133 @@ class SynthesizerDataModule(L.LightningDataModule):
         return torch.utils.data.DataLoader(
             self.test_dataset, batch_size=self.batch_size, shuffle=False
         )
+
+
+class BatchedSynthDataLoader(torch.nn.Module):
+    """
+    A dataloader that returns batches of synthesizer sounds, optionally running
+    directly on the GPU.
+    """
+
+    def __init__(
+        self,
+        synth: AbstractSynth,
+        size: int,
+        batch_size: int,
+        device: str = "cpu",
+        seed: int = 649418400,
+        return_sound=True,
+    ):
+        super().__init__()
+        self.synth = synth
+        self.batch_size = batch_size
+
+        # Number of samples in the dataset is the size
+        self.size = size
+        self.steps = size // batch_size
+
+        # Check if the device is valid
+        self.device = device
+        if device == "cuda" and not torch.cuda.is_available():
+            print("Dataloader: CUDA is not available, using CPU")
+            self.device = "cpu"
+
+        self.seed = seed
+        self.return_sound = return_sound
+        self.generator = torch.Generator(device="cpu")
+        self.current = 0
+
+    def __len__(self):
+        return self.steps
+
+    def __iter__(self):
+        self.current = 0
+        return self
+
+    def __next__(self):
+        # Step iterator or raise StopIteration
+        if self.current >= self.steps:
+            raise StopIteration
+        self.current += 1
+
+        # Generate the batch of parameters (on the CPU for reproducibility)
+        self.generator.manual_seed(self.seed + (self.current * self.batch_size))
+        params = torch.rand(
+            self.batch_size,
+            self.synth.get_num_params(),
+            generator=self.generator,
+            device="cpu",
+        )
+        params = params.to(self.device)
+
+        if self.return_sound:
+            sound = self.synth(params)
+            return sound, params
+
+        return (params,)
+
+
+class BatchedSynthesizerDataModule(L.LightningDataModule):
+    """
+    A data module for synthesizer datasets
+    """
+
+    def __init__(
+        self,
+        synth: AbstractSynth,
+        batch_size: int,
+        device: str = "cpu",
+        num_train: int = 1000000,
+        num_val: int = 10000,
+        num_test: int = 10000,
+        seed: int = 649418400,
+        return_sound: bool = True,
+    ):
+        super().__init__()
+        self.synth = synth
+        self.batch_size = batch_size
+        self.device = device
+        self.num_train = num_train
+        self.num_val = num_val
+        self.num_test = num_test
+        self.seed = seed
+        self.return_sound = return_sound
+
+    def train_dataloader(self):
+        """
+        Returns the train dataloader
+        """
+        return BatchedSynthDataLoader(
+            self.synth,
+            self.num_train,
+            self.batch_size,
+            device=self.device,
+            seed=self.seed,
+            return_sound=self.return_sound,
+        )
+
+    def val_dataloader(self):
+        """
+        Returns the validation dataloader
+        """
+        return BatchedSynthDataLoader(
+            self.synth,
+            self.num_train,
+            self.batch_size,
+            device=self.device,
+            seed=self.seed + self.num_train,
+            return_sound=self.return_sound,
+        )
+
+    def test_dataloader(self):
+        """
+        Returns the test dataloader
+        """
+        return BatchedSynthDataLoader(
+            self.synth,
+            self.num_train,
+            self.batch_size,
+            device=self.device,
+            seed=self.seed + self.num_train + self.num_val,
+            return_sound=self.return_sound,
+        )
