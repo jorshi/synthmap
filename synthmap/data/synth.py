@@ -226,7 +226,7 @@ class BatchedSynthesizerDataModule(L.LightningDataModule):
         """
         return BatchedSynthDataLoader(
             self.synth,
-            self.num_train,
+            self.num_val,
             self.batch_size,
             device=self.device,
             seed=self.seed + self.num_train,
@@ -239,7 +239,7 @@ class BatchedSynthesizerDataModule(L.LightningDataModule):
         """
         return BatchedSynthDataLoader(
             self.synth,
-            self.num_train,
+            self.num_test,
             self.batch_size,
             device=self.device,
             seed=self.seed + self.num_train + self.num_val,
