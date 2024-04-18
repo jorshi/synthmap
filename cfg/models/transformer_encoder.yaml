@@ -1,0 +1,5 @@
+class_path: synthmap.models.transformer.TransformerAggegrate
+init_args:
+  input_dim: 128
+  output_dim: 14
+  clip_length: 375

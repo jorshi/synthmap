@@ -1,8 +1,8 @@
 model:
   class_path: synthmap.task.SynthMapTask
   init_args:
-    audio_encoder: models/soundstream_att_enc.yaml
-    param_decoder: models/param_projection.yaml
+    audio_encoder: models/soundstream_encoder.yaml
+    param_decoder: models/transformer_encoder.yaml
     loss_fn: torch.nn.MSELoss
     # param_discretizer:
     #   class_path: synthmap.params.DiscretizedNumericalParameters
