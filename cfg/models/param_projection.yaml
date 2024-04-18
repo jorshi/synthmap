@@ -1,9 +1,9 @@
 class_path: synthmap.models.mlp.MLP
 init_args:
-  in_size: 16
-  hidden_size: 256
+  in_size: 128
+  hidden_size: 512
   out_size: 14
-  num_layers: 3
+  num_layers: 1
   activation: torch.nn.LeakyReLU
   layer_norm: true
-  init_std: 0.1
+  init_std: 0.01

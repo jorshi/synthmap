@@ -1,5 +1,6 @@
 import torch
 import torchaudio
+from einops import repeat
 
 from synthmap.utils.audio_utils import load_wav_dir_as_tensor
 
@@ -60,7 +61,7 @@ class MelSpecFitness(FitnessFunctionBase):
 
     @property
     def objective(self) -> str:
-        return "min"
+        return ["min", "max"]
 
     def prepare(self):
         """
@@ -79,9 +80,18 @@ class MelSpecFitness(FitnessFunctionBase):
         # Calculate Mel spectrogram for the input audio
         x = self.mel(x)
 
+        minimums = torch.zeros(x.shape[0], device=x.device)
         maximums = torch.zeros(x.shape[0], device=x.device)
+        argmins = torch.zeros(x.shape[0], device=x.device, dtype=torch.long)
         for i in range(x.shape[0]):
             diff = torch.mean(torch.abs(x[i] - self.mel_targets), dim=(-1, -2))
+            minimums[i] = torch.min(diff)
             maximums[i] = torch.max(diff)
+            argmins[i] = torch.argmin(diff)
 
-        return maximums
+        argmin = torch.unique(argmins, return_counts=False).shape[0]
+        argmin = torch.tensor([argmin], device=x.device, dtype=torch.float32)
+        argmin = argmin / x.shape[0]
+        argmin = repeat(argmin, "() -> b", b=x.shape[0])
+
+        return minimums, argmin

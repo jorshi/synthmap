@@ -7,6 +7,8 @@ import time
 
 from lightning.pytorch.cli import LightningCLI
 
+from synthmap.callback import SaveConfigCallbackWanb
+
 # Setup logging
 logging.basicConfig()
 log = logging.getLogger(__name__)
@@ -15,7 +17,7 @@ log.setLevel(level=os.environ.get("LOGLEVEL", "INFO"))
 
 def run_cli():
     """ """
-    _ = LightningCLI()
+    _ = LightningCLI(save_config_callback=SaveConfigCallbackWanb)
     return
 
 

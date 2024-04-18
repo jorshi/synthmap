@@ -73,7 +73,10 @@ class GeneticSynthDataLoader(torch.nn.Module):
         Create a problem for the genetic algorithm
         """
         # Create the problem
-        opt = [fit.objective for fit in self.fitness_fns]
+        opt = []
+        for fit in self.fitness_fns:
+            opt.extend(fit.objective)
+
         self.problem = Problem(
             opt,
             self.fitness,
@@ -85,7 +88,7 @@ class GeneticSynthDataLoader(torch.nn.Module):
         )
 
         # Create the genetic algorithm
-        self.ga = SteadyStateGA(self.problem, popsize=self.batch_size)
+        self.ga = SteadyStateGA(self.problem, popsize=self.batch_size, re_evaluate=True)
         self.ga.use(
             SimulatedBinaryCrossOver(
                 self.problem,
@@ -95,6 +98,7 @@ class GeneticSynthDataLoader(torch.nn.Module):
             )
         )
         self.ga.use(GaussianMutation(self.problem, stdev=0.3))
+        # self.logger = StdOutLogger(self.ga)
 
     def fitness(self, x: torch.Tensor):
         """
@@ -105,7 +109,7 @@ class GeneticSynthDataLoader(torch.nn.Module):
 
         fitness = []
         for fit in self.fitness_fns:
-            fitness.append(fit(sounds))
+            fitness.extend(fit(sounds))
 
         return torch.stack(fitness, dim=-1)
 
@@ -158,28 +162,28 @@ class GeneticSynthesizerDataModule(L.LightningDataModule):
             reset_on_epoch=self.reset_on_epoch,
         )
 
-    def val_dataloader(self):
-        """
-        Returns the validation dataloader
-        """
-        return GeneticSynthDataLoader(
-            self.synth,
-            self.val_steps,
-            self.batch_size,
-            fitness_fns=self.fitness_fns,
-            return_sound=self.return_sound,
-            reset_on_epoch=self.reset_on_epoch,
-        )
+    # def val_dataloader(self):
+    #     """
+    #     Returns the validation dataloader
+    #     """
+    #     return GeneticSynthDataLoader(
+    #         self.synth,
+    #         self.val_steps,
+    #         self.batch_size,
+    #         fitness_fns=self.fitness_fns,
+    #         return_sound=self.return_sound,
+    #         reset_on_epoch=self.reset_on_epoch,
+    #     )
 
-    def test_dataloader(self):
-        """
-        Returns the test dataloader
-        """
-        return GeneticSynthDataLoader(
-            self.synth,
-            self.test_steps,
-            self.batch_size,
-            fitness_fns=self.fitness_fns,
-            return_sound=self.return_sound,
-            reset_on_epoch=self.reset_on_epoch,
-        )
+    # def test_dataloader(self):
+    #     """
+    #     Returns the test dataloader
+    #     """
+    #     return GeneticSynthDataLoader(
+    #         self.synth,
+    #         self.test_steps,
+    #         self.batch_size,
+    #         fitness_fns=self.fitness_fns,
+    #         return_sound=self.return_sound,
+    #         reset_on_epoch=self.reset_on_epoch,
+    #     )
