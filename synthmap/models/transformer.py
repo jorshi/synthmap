@@ -18,7 +18,7 @@ class TransformerAggegrate(torch.nn.Module):
         input_dim: int,
         output_dim: int,
         clip_length: int,
-        num_layers: int = 6,
+        num_layers: int = 4,
         nhead: int = 8,
     ):
         super().__init__()
