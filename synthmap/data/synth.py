@@ -1,7 +1,7 @@
 import lightning as L
 import torch
 
-from .synth import AbstractSynth
+from synthmap.synth import AbstractSynth
 
 
 class SynthesizerDataset(torch.utils.data.Dataset):

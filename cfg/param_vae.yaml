@@ -17,7 +17,7 @@ optimizer:
   class_path: torch.optim.Adam
   init_args:
     lr: 0.001
-data: data/snare_808_noaudio.yaml
+data: data/genetic.yaml
 trainer:
   devices: 1
   accelerator: gpu

@@ -108,7 +108,6 @@ class _SoundStreamEncoderBlock(nn.Module):
 
 
 class SoundStreamEncoder(nn.Module):
-
     """Convolutional waveform encoder from SoundStream model, without vector
     quantization.
 
@@ -188,7 +187,6 @@ class SoundStreamEncoder(nn.Module):
 
 
 class SoundStreamAttentionEncoder(nn.Module):
-
     """SoundStream encoder with attention pooling"""
 
     def __init__(

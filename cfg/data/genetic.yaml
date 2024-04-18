@@ -1,0 +1,19 @@
+class_path: synthmap.data.genetic.GeneticSynthesizerDataModule
+init_args:
+  synth:
+    class_path: synthmap.synth.Snare808
+    init_args:
+      sample_rate: 48000
+      num_samples: 48000
+  num_train: 10000
+  num_val: 100
+  num_test: 100
+  batch_size: 32
+  return_sound: false
+  reset_on_epoch: false
+  fitness_fns:
+    - class_path: synthmap.data.fitness.MelSpecFitness
+      init_args:
+        sample_rate: 48000
+        duration: 48000
+        audio: dataset/mars808

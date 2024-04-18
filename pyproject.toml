@@ -10,6 +10,7 @@ name = "synthmap"
 version = "0.0.1"
 dependencies = [
     "einops",
+    "evotorch",
     "jsonargparse[signatures]>=4.18.0",
     "lightning",
     "matplotlib",
