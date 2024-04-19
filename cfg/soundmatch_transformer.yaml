@@ -22,7 +22,7 @@ trainer:
     class_path: lightning.pytorch.loggers.WandbLogger
     init_args:
       project: synthmap
-      name: soundmatch_soundstream
+      name: soundmatch_transformer_1M
       save_dir: ./lightning_logs
       log_model: false
     dict_kwargs:
