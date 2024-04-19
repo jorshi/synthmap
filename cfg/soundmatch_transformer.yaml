@@ -17,7 +17,7 @@ data: data/gpu_808.yaml
 trainer:
   devices: 1
   accelerator: gpu
-  max_epochs: 250
+  max_epochs: 10
   logger:
     class_path: lightning.pytorch.loggers.WandbLogger
     init_args:
