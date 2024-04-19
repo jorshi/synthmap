@@ -136,6 +136,11 @@ class BatchedSynthDataLoader(torch.nn.Module):
         self.synth = synth
         self.batch_size = batch_size
 
+        print(
+            f"BatchedSynthDataLoader: Generating {size} samples"
+            f" with batch size {batch_size} on {device}"
+        )
+
         # Number of samples in the dataset is the size
         self.size = size
         self.steps = size // batch_size
@@ -206,6 +211,7 @@ class BatchedSynthesizerDataModule(L.LightningDataModule):
         self.num_test = num_test
         self.seed = seed
         self.return_sound = return_sound
+        print(f"Num train {num_train}, num val {num_val}, num test {num_test}")
 
     def train_dataloader(self):
         """

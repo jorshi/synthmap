@@ -7,6 +7,6 @@ init_args:
       num_samples: 48000
   batch_size: 32
   device: cuda
-  num_train: 100000
-  num_val: 1000
+  num_train: 1000000
+  num_val: 10000
   return_sound: true
