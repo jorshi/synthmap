@@ -6,8 +6,8 @@ model:
     bottleneck:
       class_path: synthmap.models.autoencoder.GaussianVAE
       init_args:
-        beta: 0.01
-    loss_fn: torch.nn.MSELoss
+        beta: 0.1
+    loss_fn: loss/mae_mse_loss.yaml
     # param_discretizer:
     #   class_path: synthmap.params.DiscretizedNumericalParameters
     #   init_args:
@@ -16,7 +16,7 @@ model:
 optimizer:
   class_path: torch.optim.Adam
   init_args:
-    lr: 0.001
+    lr: 0.0001
 data: data/genetic.yaml
 trainer:
   devices: 1

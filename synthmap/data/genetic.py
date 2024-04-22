@@ -7,8 +7,9 @@ from typing import Union
 import lightning as L
 import torch
 from evotorch import Problem
-from evotorch.algorithms import SteadyStateGA
-from evotorch.operators import GaussianMutation
+from evotorch.algorithms import GeneticAlgorithm
+from evotorch.logging import StdOutLogger
+from evotorch.operators import PolynomialMutation
 from evotorch.operators import SimulatedBinaryCrossOver
 
 from synthmap.data.fitness import FitnessFunctionBase
@@ -30,6 +31,7 @@ class GeneticSynthDataLoader(torch.nn.Module):
         device: str = "cpu",
         return_sound=True,
         reset_on_epoch=True,
+        verbose=False,
     ):
         super().__init__()
         self.synth = synth
@@ -39,7 +41,9 @@ class GeneticSynthDataLoader(torch.nn.Module):
         self.device = device
         self.return_sound = return_sound
         self.reset_on_epoch = reset_on_epoch
+        self.verbose = verbose
         self.current = 0
+        self.sound = None
 
         # Create the problem
         self.create_problem()
@@ -66,6 +70,10 @@ class GeneticSynthDataLoader(torch.nn.Module):
         # Get the solution
         params = self.ga.population.values.clone()
 
+        # Return the sound if requested
+        if self.return_sound:
+            return (self.sound, params)
+
         return (params,)
 
     def create_problem(self):
@@ -74,7 +82,9 @@ class GeneticSynthDataLoader(torch.nn.Module):
         """
         # Create the problem
         opt = []
-        for fit in self.fitness_fns:
+        for i, fit in enumerate(self.fitness_fns):
+            print(f"Creating problem for fitness function {i}, device {self.device}")
+            self.fitness_fns[i].to(self.device)
             opt.extend(fit.objective)
 
         self.problem = Problem(
@@ -88,17 +98,27 @@ class GeneticSynthDataLoader(torch.nn.Module):
         )
 
         # Create the genetic algorithm
-        self.ga = SteadyStateGA(self.problem, popsize=self.batch_size, re_evaluate=True)
-        self.ga.use(
-            SimulatedBinaryCrossOver(
-                self.problem,
-                tournament_size=4,
-                cross_over_rate=1.0,
-                eta=8,
-            )
+        self.ga = GeneticAlgorithm(
+            self.problem,
+            popsize=self.batch_size,
+            elitist=True,
+            operators=[
+                SimulatedBinaryCrossOver(
+                    self.problem,
+                    tournament_size=4,
+                    cross_over_rate=1.0,
+                    eta=8,
+                ),
+                PolynomialMutation(
+                    self.problem,
+                    eta=5.0,
+                    mutation_probability=0.5,
+                ),
+            ],
         )
-        self.ga.use(GaussianMutation(self.problem, stdev=0.3))
-        # self.logger = StdOutLogger(self.ga)
+
+        if self.verbose:
+            self.logger = StdOutLogger(self.ga)
 
     def fitness(self, x: torch.Tensor):
         """
@@ -106,6 +126,7 @@ class GeneticSynthDataLoader(torch.nn.Module):
         """
         # Evaluate the synthesizer
         sounds = self.synth(torch.clamp(x, 0.0, 1.0))
+        self.sound = sounds
 
         fitness = []
         for fit in self.fitness_fns:

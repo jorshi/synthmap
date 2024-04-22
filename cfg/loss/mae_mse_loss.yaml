@@ -1,0 +1,14 @@
+class_path: synthmap.loss.CombinedLoss
+init_args:
+  losses:
+    class_path: torch.nn.ModuleDict
+    init_args:
+      modules:
+        mae:
+          class_path: torch.nn.L1Loss
+          init_args:
+            reduction: mean
+        mse:
+          class_path: torch.nn.MSELoss
+          init_args:
+            reduction: mean

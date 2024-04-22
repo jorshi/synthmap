@@ -1,6 +1,9 @@
 """
 Loss functions and regularizers for training the model.
 """
+from typing import Dict
+from typing import Optional
+
 import torch
 import torchaudio
 
@@ -71,4 +74,29 @@ class AudioLatentRegularizer(torch.nn.Module):
 
         loss = torch.tanh(self.gamma * latent_dist) - audio_dist
         loss = torch.mean(torch.abs(loss))
+        return loss
+
+
+class CombinedLoss(torch.nn.Module):
+    """
+    Combine multiple losses into a single loss
+    """
+
+    def __init__(
+        self, losses: torch.nn.ModuleDict, weights: Optional[Dict[str, float]] = None
+    ):
+        super().__init__()
+        self.losses = torch.nn.ModuleDict(losses)
+        self.weights = weights
+
+    def forward(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        """
+        Calculate the combined loss
+        """
+        loss = 0.0
+        for name, loss_fn in self.losses.items():
+            weight = 1.0
+            if self.weights is not None and name in self.weights:
+                weight = self.weights[name]
+            loss += loss_fn(x, y) * weight
         return loss

@@ -1,7 +1,11 @@
+from typing import List
+
+import auraloss
 import torch
 import torchaudio
 from einops import repeat
 
+from synthmap.utils.audio_utils import load_audio
 from synthmap.utils.audio_utils import load_wav_dir_as_tensor
 
 
@@ -40,8 +44,8 @@ class MelSpecFitness(FitnessFunctionBase):
 
     def __init__(
         self,
-        sample_rate: int,
         audio: str,
+        sample_rate: int,
         duration: int,
         n_fft: int = 2048,
         hop_length: int = 64,
@@ -61,7 +65,7 @@ class MelSpecFitness(FitnessFunctionBase):
 
     @property
     def objective(self) -> str:
-        return ["min", "max"]
+        return ["min"]
 
     def prepare(self):
         """
@@ -94,4 +98,79 @@ class MelSpecFitness(FitnessFunctionBase):
         argmin = argmin / x.shape[0]
         argmin = repeat(argmin, "() -> b", b=x.shape[0])
 
-        return minimums, argmin
+        return (minimums,)
+
+
+class MultiScaleSpectralFitness(FitnessFunctionBase):
+    """
+    Fitness function to minimize the difference in multi-scale spectral
+    features between the target and the synthesized audio
+    """
+
+    def __init__(
+        self,
+        audio: str,  # Path to an input audio sample for target
+        sample_rate: int,  # Input audio sample rate
+        duration: str,  # Duration of the input audio sample
+        fft_sizes: List[int] = [1024, 2048, 512, 128],
+        hop_sizes: List[int] = None,
+        win_lengths: List[int] = None,
+        sum_loss: bool = False,
+        **kwargs,
+    ):
+        super().__init__()
+        self.sample_rate = sample_rate
+        self.duration = duration
+        self.audio_path = audio
+        self.sum_loss = sum_loss
+
+        if hop_sizes is None:
+            hop_sizes = [fft_size // 4 for fft_size in fft_sizes]
+
+        if win_lengths is None:
+            win_lengths = [fft_size for fft_size in fft_sizes]
+
+        self.losses = []
+        for i in range(len(fft_sizes)):
+            stft = auraloss.freq.STFTLoss(
+                sample_rate=sample_rate,
+                fft_size=fft_sizes[i],
+                hop_size=hop_sizes[i],
+                win_length=win_lengths[i],
+                reduction="none",
+                **kwargs,
+            )
+            self.losses.append(stft)
+
+        self.prepare()
+
+    @property
+    def objective(self) -> List[str]:
+        if self.sum_loss:
+            return ["min"]
+        return ["min"] * len(self.losses)
+
+    def prepare(self):
+        """
+        Prepare the audio for fitness calculation
+        """
+        audio = load_audio(self.audio_path, self.sample_rate, length=self.duration)
+        self.register_buffer("audio", audio)
+        print(f"Loaded audio with shape {self.audio.shape}")
+
+    def forward(self, x: torch.Tensor):
+        # Calculate the multi-scale spectral loss
+        target = repeat(self.audio, "1 n -> b 1 n", b=x.shape[0])
+
+        evals = []
+        for i in range(len(self.losses)):
+            loss = self.losses[i](x[:, None, :], target)
+            loss = torch.mean(loss, dim=(-1, -2))
+            evals.append(loss)
+
+        if self.sum_loss:
+            evals = torch.vstack(evals)
+            evals = torch.sum(evals, dim=0)
+            return (evals,)
+
+        return evals
