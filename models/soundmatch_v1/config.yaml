@@ -1,0 +1,148 @@
+# lightning.pytorch==2.2.2
+seed_everything: 3608013887
+trainer:
+  accelerator: gpu
+  strategy: auto
+  devices: 1
+  num_nodes: 1
+  precision: null
+  logger:
+    class_path: lightning.pytorch.loggers.WandbLogger
+    init_args:
+      name: soundmatch_transformer_1M
+      save_dir: ./lightning_logs
+      version: null
+      offline: false
+      dir: null
+      id: null
+      anonymous: null
+      project: synthmap
+      log_model: false
+      experiment: null
+      prefix: ''
+      checkpoint_name: null
+      job_type: train
+      config: null
+      entity: jordieshier
+      reinit: null
+      tags: null
+      group: synthmap
+      notes: null
+      magic: null
+      config_exclude_keys: null
+      config_include_keys: null
+      mode: null
+      allow_val_change: null
+      resume: null
+      force: null
+      tensorboard: null
+      sync_tensorboard: null
+      monitor_gym: null
+      save_code: null
+      fork_from: null
+      settings: null
+  callbacks: null
+  fast_dev_run: false
+  max_epochs: 10
+  min_epochs: null
+  max_steps: -1
+  min_steps: null
+  max_time: null
+  limit_train_batches: null
+  limit_val_batches: null
+  limit_test_batches: null
+  limit_predict_batches: null
+  overfit_batches: 0.0
+  val_check_interval: null
+  check_val_every_n_epoch: 1
+  num_sanity_val_steps: null
+  log_every_n_steps: null
+  enable_checkpointing: null
+  enable_progress_bar: null
+  enable_model_summary: null
+  accumulate_grad_batches: 1
+  gradient_clip_val: null
+  gradient_clip_algorithm: null
+  deterministic: null
+  benchmark: null
+  inference_mode: true
+  use_distributed_sampler: true
+  profiler: null
+  detect_anomaly: false
+  barebones: false
+  plugins: null
+  sync_batchnorm: false
+  reload_dataloaders_every_n_epochs: 0
+  default_root_dir: null
+model:
+  class_path: synthmap.task.SynthMapTask
+  init_args:
+    param_encoder: null
+    audio_encoder:
+      class_path: synthmap.models.soundstream.SoundStreamEncoder
+      init_args:
+        input_channels: 1
+        hidden_channels: 16
+        output_channels: 128
+        kernel_size: 7
+        strides:
+        - 2
+        - 4
+        - 4
+        - 4
+        causal: false
+        film_conditioning: false
+        film_embedding_size: 128
+        film_batch_norm: false
+        transpose_output: false
+        time_average: false
+    param_decoder:
+      class_path: synthmap.models.transformer.TransformerAggegrate
+      init_args:
+        input_dim: 128
+        output_dim: 14
+        clip_length: 375
+        num_layers: 4
+        nhead: 8
+    bottleneck: null
+    param_discretizer: null
+    loss_fn:
+      class_path: torch.nn.MSELoss
+      init_args:
+        size_average: null
+        reduce: null
+        reduction: mean
+    audio_regularizer: null
+    lr: 0.001
+optimizer:
+  class_path: torch.optim.Adam
+  init_args:
+    lr: 0.0001
+    betas:
+    - 0.9
+    - 0.999
+    eps: 1.0e-08
+    weight_decay: 0.0
+    amsgrad: false
+    foreach: null
+    maximize: false
+    capturable: false
+    differentiable: false
+    fused: null
+data:
+  class_path: synthmap.data.synth.BatchedSynthesizerDataModule
+  init_args:
+    synth:
+      class_path: synthmap.synth.Snare808
+      init_args:
+        sample_rate: 48000
+        num_samples: 48000
+        buffer_noise: false
+        buffer_size: 0
+    batch_size: 32
+    device: cuda
+    num_train: 1000000
+    num_val: 10000
+    num_test: 10000
+    seed: 649418400
+    return_sound: true

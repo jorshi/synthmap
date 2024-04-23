@@ -1,0 +1,27 @@
+class_path: synthmap.feature.FeatureCollection
+init_args:
+  features:
+    - class_path: synthmap.feature.CascadingFrameExtactor
+      init_args:
+        extractors:
+          - class_path: synthmap.feature.SpectralCentroid
+            init_args:
+              sample_rate: 44100
+              window: "hann"
+          - class_path: synthmap.feature.RMS
+          - class_path: synthmap.feature.SpectralSpread
+        num_frames:
+          - 64
+        frame_size: 2048
+        hop_size: 512
+    - class_path: synthmap.feature.CascadingFrameExtactor
+      init_args:
+        extractors:
+          - class_path: synthmap.feature.TemporalCentroid
+            init_args:
+              sample_rate: 44100
+              scaling: "schlauch"
+        num_frames:
+          - 1
+        frame_size: 5512
+        hop_size: 5512

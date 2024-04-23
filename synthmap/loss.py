@@ -2,10 +2,13 @@
 Loss functions and regularizers for training the model.
 """
 from typing import Dict
+from typing import List
 from typing import Optional
 
 import torch
 import torchaudio
+
+from synthmap.feature import FeatureCollection
 
 
 def get_transform(name: str, **kwargs) -> torch.nn.Module:
@@ -75,6 +78,44 @@ class AudioLatentRegularizer(torch.nn.Module):
         loss = torch.tanh(self.gamma * latent_dist) - audio_dist
         loss = torch.mean(torch.abs(loss))
         return loss
+
+
+class TimbreRegularizer(torch.nn.Module):
+    """
+    Regularize the first N dimensions of the latent space to vary according to timbre
+    """
+
+    def __init__(
+        self,
+        extractor: FeatureCollection,
+        gamma: float = 1.0,
+        weights: Optional[List[float]] = None,
+    ):
+        super().__init__()
+        self.extractor = extractor
+        self.gamma = gamma
+        if weights is None:
+            weights = [1.0] * len(extractor)
+        self.weights = weights
+
+    def forward(self, audio: torch.Tensor, latent: torch.Tensor) -> torch.Tensor:
+        """
+        Regularize the latent space to vary according to the timbre metric
+        """
+        features = self.extractor(audio)
+        loss = []
+        for i in range(features.shape[-1]):
+            feat = features[..., i][..., None]
+            feat_dist = torch.cdist(feat, feat, p=2)
+
+            lat = latent[..., i][..., None]
+            lat_dist = torch.cdist(lat, lat, p=2)
+
+            dist = torch.tanh(self.gamma * lat_dist) - feat_dist
+            dist = torch.mean(torch.abs(dist))
+            loss.append(dist * self.weights[i])
+
+        return torch.sum(torch.stack(loss))
 
 
 class CombinedLoss(torch.nn.Module):

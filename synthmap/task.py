@@ -27,6 +27,7 @@ class SynthMapTask(L.LightningModule):
         param_discretizer: Optional[DiscretizedNumericalParameters] = None,
         loss_fn: torch.nn.Module = torch.nn.MSELoss(),
         audio_regularizer: Optional[torch.nn.Module] = None,
+        audio_regularizer_weight: float = 1.0,
         lr: float = 1e-3,
     ) -> None:
         super().__init__()
@@ -37,6 +38,7 @@ class SynthMapTask(L.LightningModule):
         self.param_discretizer = param_discretizer
         self.loss_fn = loss_fn
         self.audio_regularizer = audio_regularizer
+        self.audio_regularizer_weight = audio_regularizer_weight
         self.lr = lr
 
     def forward(
@@ -108,10 +110,10 @@ class SynthMapTask(L.LightningModule):
             loss["audio_kl"] = kl
 
         # Regularize the latent space to vary according to the audio metric
-        # if self.audio_regularizer is not None:
-        #     assert len(batch) == 2, "Audio must be provided for audio regularization"
-        #     audio_loss = self.audio_regularizer(audio, z)
-        #     loss["audio_reg"] = audio_loss
+        if self.audio_regularizer is not None:
+            assert len(batch) == 2, "Audio must be provided for audio regularization"
+            audio_loss = self.audio_regularizer(audio, z)
+            loss["audio_reg"] = audio_loss * self.audio_regularizer_weight
 
         summed_loss = self.summed_losses(loss)
         loss["loss"] = summed_loss
