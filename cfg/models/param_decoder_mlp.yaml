@@ -1,6 +1,6 @@
 class_path: synthmap.models.mlp.MLP
 init_args:
-  in_size: 16
+  in_size: 6
   hidden_size: 256
   out_size: 14
   num_layers: 3
