@@ -9,7 +9,7 @@ model:
         beta: 0.01
     loss_fn: loss/mae_mse_loss.yaml
     audio_regularizer: loss/timbre_regularizer.yaml
-    audio_regularizer_weight: 0.05
+    audio_regularizer_weight: 0.01
     # param_discretizer:
     #   class_path: synthmap.params.DiscretizedNumericalParameters
     #   init_args:

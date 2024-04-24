@@ -9,7 +9,7 @@ init_args:
   num_val: 100
   num_test: 100
   batch_size: 32
-  return_sound: false
+  return_audio: false
   reset_on_epoch: false
   fitness_fns:
     - class_path: synthmap.data.fitness.MelSpecFitness

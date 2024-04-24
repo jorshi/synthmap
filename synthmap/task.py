@@ -1,6 +1,7 @@
 """
 SynthMap Learn a VAE model on synth presets
 """
+from typing import Dict
 from typing import Optional
 from typing import Tuple
 
@@ -76,11 +77,12 @@ class SynthMapTask(L.LightningModule):
             "optimizer": optimizer,
         }
 
-    def _do_step(self, batch: Tuple[torch.Tensor, torch.Tensor], stage: str):
-        if len(batch) == 1:
-            params = batch[0]
-        else:
-            audio, params = batch
+    def _do_step(self, batch: Dict[str, torch.Tensor], stage: str):
+        """
+        Perform a forward pass and compute the loss
+        """
+        params = batch["params"]
+        audio = batch.get("audio", None)
 
         # Do a parameter forward pass if we have a parameter encoder
         loss = {}
@@ -111,12 +113,18 @@ class SynthMapTask(L.LightningModule):
 
         # Regularize the latent space to vary according to the audio metric
         if self.audio_regularizer is not None:
-            assert len(batch) == 2, "Audio must be provided for audio regularization"
+            assert audio is not None, "Audio must be provided for audio regularization"
             audio_loss = self.audio_regularizer(audio, z)
             loss["audio_reg"] = audio_loss * self.audio_regularizer_weight
 
         summed_loss = self.summed_losses(loss)
         loss["loss"] = summed_loss
+
+        # Check if there are GA dataloader evals to log
+        if "evals" in batch:
+            evals = batch["evals"]
+            eval_log = {f"GA_Obj{i}": evals[i] for i in range(evals.size(0))}
+            self.log_loss(eval_log, stage)
 
         # Log the loss and return the summed loss
         self.log_loss(loss, stage)
@@ -135,7 +143,13 @@ class SynthMapTask(L.LightningModule):
         for key, value in loss.items():
             if value is not None:
                 prog_bar = key == "loss"
-                self.log(f"{prefix}/{key}", value, on_epoch=True, prog_bar=prog_bar)
+                self.log(
+                    f"{prefix}/{key}",
+                    value,
+                    on_step=False,
+                    on_epoch=True,
+                    prog_bar=prog_bar,
+                )
 
     def summed_losses(self, losses: dict):
         return sum([loss for loss in losses.values() if loss is not None])

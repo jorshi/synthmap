@@ -1,10 +1,13 @@
 from typing import List
 
 import auraloss
+import numpy as np
 import torch
 import torchaudio
 from einops import repeat
+from sklearn.neighbors import NearestNeighbors
 
+from synthmap.feature import FeatureCollection
 from synthmap.utils.audio_utils import load_audio
 from synthmap.utils.audio_utils import load_wav_dir_as_tensor
 
@@ -23,6 +26,12 @@ class FitnessFunctionBase(torch.nn.Module):
         The objective of the fitness function - either "min" or "max"
         """
         raise NotImplementedError
+
+    def reset(self):
+        """
+        Reset the fitness function (optional)
+        """
+        pass
 
     def forward(self, x: torch.Tensor):
         """
@@ -174,3 +183,72 @@ class MultiScaleSpectralFitness(FitnessFunctionBase):
             return (evals,)
 
         return evals
+
+
+class NoveltySearch(FitnessFunctionBase):
+    """
+    Implements a novelty search fitness function based on kNN of a behaviour
+    characteristic computed from audio.
+    """
+
+    def __init__(
+        self,
+        extractor: FeatureCollection,  # Feature extractor for behaviour characteristic
+        n_neighbors: int = 15,
+        n_archive: int = 5,
+    ):
+        super().__init__()
+        self.extractor = extractor
+        self.knn = NearestNeighbors(n_neighbors=n_neighbors)
+        self.archive = None
+        self.n_archive = n_archive
+
+    @property
+    def objective(self) -> str:
+        """
+        Objective is to maximize the novelty
+        """
+        return ["max"]
+
+    def reset(self):
+        """
+        Reset the fitness function.
+        """
+        self.archive = None
+
+    def forward(self, x: torch.Tensor):
+        """
+        Calculate the fitness value for a batch of parameters
+
+        Args:
+            x: A batch of parameters
+
+        Returns:
+            A batch of fitness values
+        """
+        # Extract the behaviour characteristic
+        features = self.extractor(x).cpu().numpy()
+
+        # Merge features with the current archive
+        if self.archive is not None:
+            merged_features = np.vstack([features, self.archive])
+        else:
+            merged_features = features
+
+        # Update a kNN model with the features
+        knn = self.knn.fit(merged_features)
+
+        fitness = knn.kneighbors(features, return_distance=True)
+        n_neighbors = fitness[0].shape[1]
+        fitness = fitness[0].sum(axis=-1) / n_neighbors
+
+        # Add random selection of features to archive
+        idx = np.random.choice(features.shape[0], self.n_archive)
+        if self.archive is None:
+            self.archive = features[idx]
+        else:
+            self.archive = np.vstack([self.archive, features[idx]])
+
+        # Convert to tensor and return
+        fitness = torch.from_numpy(fitness).to(x.device)
+        return (fitness,)

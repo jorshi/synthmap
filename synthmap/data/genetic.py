@@ -29,7 +29,8 @@ class GeneticSynthDataLoader(torch.nn.Module):
         batch_size: int,
         fitness_fns: List[FitnessFunctionBase],
         device: str = "cpu",
-        return_sound=True,
+        return_audio=True,
+        return_evals=False,
         reset_on_epoch=True,
         verbose=False,
     ):
@@ -39,11 +40,12 @@ class GeneticSynthDataLoader(torch.nn.Module):
         self.batch_size = batch_size
         self.fitness_fns = fitness_fns
         self.device = device
-        self.return_sound = return_sound
+        self.return_audio = return_audio
+        self.return_evals = return_evals
         self.reset_on_epoch = reset_on_epoch
         self.verbose = verbose
         self.current = 0
-        self.sound = None
+        self.audio = None
 
         # Create the problem
         self.create_problem()
@@ -70,11 +72,17 @@ class GeneticSynthDataLoader(torch.nn.Module):
         # Get the solution
         params = self.ga.population.values.clone()
 
-        # Return the sound if requested
-        if self.return_sound:
-            return (self.sound, params)
+        batch = {"params": params}
+        if self.return_audio:
+            batch["audio"] = self.audio
+        if self.return_evals:
+            # Get best value for each objective
+            evals = torch.zeros(len(self.fitness_fns))
+            for i in range(len(self.fitness_fns)):
+                evals[i] = self.ga.population.evals[self.ga.population.argbest(i), i]
+            batch["evals"] = evals
 
-        return (params,)
+        return batch
 
     def create_problem(self):
         """
@@ -85,6 +93,7 @@ class GeneticSynthDataLoader(torch.nn.Module):
         for i, fit in enumerate(self.fitness_fns):
             print(f"Creating problem for fitness function {i}, device {self.device}")
             self.fitness_fns[i].to(self.device)
+            self.fitness_fns[i].reset()
             opt.extend(fit.objective)
 
         self.problem = Problem(
@@ -125,12 +134,12 @@ class GeneticSynthDataLoader(torch.nn.Module):
         Fitness function for the genetic algorithm
         """
         # Evaluate the synthesizer
-        sounds = self.synth(torch.clamp(x, 0.0, 1.0))
-        self.sound = sounds
+        audios = self.synth(torch.clamp(x, 0.0, 1.0))
+        self.audio = audios
 
         fitness = []
         for fit in self.fitness_fns:
-            fitness.extend(fit(sounds))
+            fitness.extend(fit(audios))
 
         return torch.stack(fitness, dim=-1)
 
@@ -148,7 +157,8 @@ class GeneticSynthesizerDataModule(L.LightningDataModule):
         num_train: int = 1000000,
         num_val: int = 10000,
         num_test: int = 10000,
-        return_sound: bool = True,
+        return_audio: bool = True,
+        return_evals: bool = False,
         reset_on_epoch: bool = False,
     ):
         super().__init__()
@@ -157,7 +167,8 @@ class GeneticSynthesizerDataModule(L.LightningDataModule):
         self.train_steps = num_train // batch_size
         self.val_steps = num_val // batch_size
         self.test_steps = num_test // batch_size
-        self.return_sound = return_sound
+        self.return_audio = return_audio
+        self.return_evals = return_evals
         self.reset_on_epoch = reset_on_epoch
         self.fitness_fns = fitness_fns
 
@@ -179,32 +190,7 @@ class GeneticSynthesizerDataModule(L.LightningDataModule):
             self.train_steps,
             self.batch_size,
             fitness_fns=self.fitness_fns,
-            return_sound=self.return_sound,
+            return_audio=self.return_audio,
+            return_evals=self.return_evals,
             reset_on_epoch=self.reset_on_epoch,
         )
-
-    # def val_dataloader(self):
-    #     """
-    #     Returns the validation dataloader
-    #     """
-    #     return GeneticSynthDataLoader(
-    #         self.synth,
-    #         self.val_steps,
-    #         self.batch_size,
-    #         fitness_fns=self.fitness_fns,
-    #         return_sound=self.return_sound,
-    #         reset_on_epoch=self.reset_on_epoch,
-    #     )
-
-    # def test_dataloader(self):
-    #     """
-    #     Returns the test dataloader
-    #     """
-    #     return GeneticSynthDataLoader(
-    #         self.synth,
-    #         self.test_steps,
-    #         self.batch_size,
-    #         fitness_fns=self.fitness_fns,
-    #         return_sound=self.return_sound,
-    #         reset_on_epoch=self.reset_on_epoch,
-    #     )
