@@ -22,6 +22,7 @@ dependencies = [
 
 [project.scripts]
 synthmap = "synthmap.cli:main"
+synthmap-train = "synthmap.cli:vae_match_target"
 
 [project.optional-dependencies]
 dev = [

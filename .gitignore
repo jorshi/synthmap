@@ -177,3 +177,6 @@ archives/
 
 # Data
 dataset/
+
+# Evaluation results
+evaluation/

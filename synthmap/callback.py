@@ -65,6 +65,29 @@ class SaveAudioCallback(L.Callback):
         )
 
 
+class SaveParetoFrontParameters(L.Callback):
+    """
+    Custom callback to save the parameters of the Pareto front
+    """
+
+    def __init__(self):
+        super().__init__()
+
+    def on_train_end(self, trainer: L.Trainer, module: L.LightningModule) -> None:
+        """
+        Save the parameters and evals of the final population sorted by the Pareto front
+        """
+        data = trainer.train_dataloader
+        size = data.ga.population.evals.shape[0]
+        params = data.ga.population.take_best(size)
+
+        outdir = Path(module.logger.log_dir).joinpath("params")
+        outdir.mkdir(exist_ok=True)
+
+        torch.save(params.values, outdir.joinpath("pareto_front_params.pt"))
+        torch.save(params.evals, outdir.joinpath("pareto_front_evals.pt"))
+
+
 class SaveConfigCallbackWanb(SaveConfigCallback):
     """
     Custom callback to move the config file saved by LightningCLI to the
