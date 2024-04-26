@@ -8,8 +8,12 @@ init_args:
             init_args:
               sample_rate: 44100
               window: "hann"
+              floor: 1e-4
           - class_path: synthmap.feature.SpectralFlatness
           - class_path: synthmap.feature.SpectralSpread
+            init_args:
+              window: "hann"
+              floor: 1e-4
         num_frames:
           - 64
         frame_size: 2048

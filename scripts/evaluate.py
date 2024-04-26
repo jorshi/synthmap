@@ -6,12 +6,14 @@ Evaluation Script
 3) Evaluate the VAE model timbre manipulation spearman correlation
 """
 import argparse
+import json
 import sys
 from collections import namedtuple
 from pathlib import Path
 from typing import List
 from unittest.mock import patch
 
+import matplotlib.pyplot as plt
 import torch
 import torchaudio
 from einops import rearrange
@@ -45,10 +47,12 @@ class ModelEvaluation:
 
     def __init__(self, name: str = None):
         self.name = name
+        self.target_file = None
         self.ga_lsd = LogSpectralDistance()
         self.vae_target_lsd = LogSpectralDistance()
         self.timbre_correlation = {}
         self.audio = {}
+        self.timbre_plot = {}
 
 
 def load_run(run: Path) -> ModelRun:
@@ -177,6 +181,33 @@ def evaluate_vae_timbre_control(run: ModelRun, results: ModelEvaluation):
     return results
 
 
+def generate_timbre_plot_data(run: ModelRun, results: ModelEvaluation):
+    """
+    Generate data for plotting timbre results from the GA outpout and similar
+    number of random VAE outputs
+    """
+    # Generate output for the entire GA output
+    params = run.params
+
+    with torch.no_grad():
+        y_ga = run.synth(params)
+
+        # Generate VAE output
+        z_ga = run.cli.model.param_encoder(params)
+        z_ga, _ = run.cli.model.bottleneck(z_ga)
+        z_sample = torch.randn_like(z_ga)
+        p_hat = run.cli.model.param_decoder(z_sample)
+        y_vae = run.synth(torch.clamp(p_hat, 0.0, 1.0))
+
+        extractor = run.cli.model.audio_regularizer.extractor
+        results.timbre_plot["ga"] = extractor(y_ga).cpu().numpy()
+        results.timbre_plot["vae"] = extractor(y_vae).cpu().numpy()
+        results.timbre_plot["target"] = extractor(run.target).cpu().numpy()
+        results.timbre_plot["target (ga)"] = extractor(y_ga[:1]).cpu().numpy()
+
+    return results
+
+
 def evaluate_run(run_path: Path):
     """
     Evaluate a single run
@@ -189,6 +220,7 @@ def evaluate_run(run_path: Path):
 
     # Evaluate the genetic algorithm
     results = ModelEvaluation(name=run_path.name)
+    results.target_file = run.cli.config["target"]
     results = evaluate_genetic_algorithm(run, results)
 
     # Evaluate the VAE model for target reconstruction
@@ -200,6 +232,9 @@ def evaluate_run(run_path: Path):
     # Save the target audio
     results.audio["target"] = run.target.clone()
 
+    # Generate data for plotting
+    results = generate_timbre_plot_data(run, results)
+
     return results
 
 
@@ -207,9 +242,37 @@ def find_runs(log_dir: Path) -> List[Path]:
     """
     Search for all the lightning logs in a directory
     """
-    runs = log_dir.rglob("version_*")
+    runs = sorted(list(log_dir.rglob("version_*")))
     runs = [run for run in runs if run.is_dir()]
     return runs
+
+
+def save_timbre_plots(results: List[ModelEvaluation], outdir: Path):
+    """
+    Save all the timbre plots
+    """
+    outdir = outdir.joinpath("figures")
+    outdir.mkdir(parents=True, exist_ok=True)
+    features = list(results[0].timbre_correlation.keys())
+
+    for result in results:
+        keys = list(result.timbre_plot.keys())
+        for i in range(0, len(features), 2):
+            fig, ax = plt.subplots()
+            for key in keys:
+                x = result.timbre_plot[key][:, i]
+                y = result.timbre_plot[key][:, i + 1]
+                marker = "*" if key.startswith("target") else "o"
+                size = 250 if key.startswith("target") else 50
+                alpha = 1.0 if key.startswith("target") else 0.4
+                ax.scatter(x, y, label=key.upper(), marker=marker, s=size, alpha=alpha)
+
+            ax.set_xlabel(features[i])
+            ax.set_ylabel(features[i + 1])
+            ax.legend()
+            fig.savefig(
+                outdir.joinpath(f"{result.name}_{features[i]}_{features[i+1]}.png")
+            )
 
 
 def save_result_audio(results: List[ModelEvaluation], outdir: Path):
@@ -225,12 +288,32 @@ def save_result_audio(results: List[ModelEvaluation], outdir: Path):
             torchaudio.save(str(audio_file), audio, sample_rate=48000)
 
 
+def save_result_json(results: List[ModelEvaluation], outdir: Path):
+    """
+    Save all the audio results
+    """
+    final = {}
+    for result in results:
+        final[result.name] = {
+            "name": result.name,
+            "target_file": result.target_file,
+            "ga_lsd": result.ga_lsd.compute().item(),
+            "vae_target_lsd": result.vae_target_lsd.compute().item(),
+            "timbre_correlation": result.timbre_correlation,
+        }
+
+    outdir = outdir.joinpath("results.json")
+    with open(outdir, "w") as f:
+        json.dump(final, f, indent=4)
+
+
 def main(arguments):
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument("log_dir", help="Directoy of log files", type=str)
     parser.add_argument("output_dir", help="Output directory", type=str)
+    parser.add_argument("--save_audio", help="Save audio files", action="store_true")
 
     args = parser.parse_args(arguments)
 
@@ -239,7 +322,14 @@ def main(arguments):
     results = [evaluate_run(run) for run in runs]
 
     # Save the results
-    save_result_audio(results, Path(args.output_dir))
+    output_dir = Path(args.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    if args.save_audio:
+        save_result_audio(results, output_dir)
+
+    save_result_json(results, output_dir)
+    save_timbre_plots(results, output_dir)
 
 
 if __name__ == "__main__":
