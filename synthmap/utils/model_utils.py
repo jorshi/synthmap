@@ -5,7 +5,18 @@ from unittest.mock import patch
 
 import lightning as L
 import torch
+from lightning.pytorch.cli import LightningArgumentParser
 from lightning.pytorch.cli import LightningCLI
+
+
+class TimbreMatchCLI(LightningCLI):
+    """
+    PyTorch Lightning CLI for timbre matching
+    """
+
+    def add_arguments_to_parser(self, parser: LightningArgumentParser) -> None:
+        super().add_arguments_to_parser(parser)
+        parser.add_argument("--target", type=str, help="Path to target audio file")
 
 
 def load_model(
@@ -28,7 +39,7 @@ def load_model(
         datamodule = L.LightningDataModule
 
     with patch.object(sys, "argv", args):
-        cli = LightningCLI(run=False, datamodule_class=datamodule)
+        cli = TimbreMatchCLI(run=False, datamodule_class=datamodule)
         model = cli.model
 
     if ckpt is not None:

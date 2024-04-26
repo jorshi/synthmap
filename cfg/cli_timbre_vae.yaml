@@ -21,7 +21,7 @@ lr_scheduler:
     factor: 0.5
     patience: 10
     verbose: true
-data: data/genetic.yaml
+data: data/gpu_808.yaml
 trainer:
   devices: 1
   accelerator: gpu

@@ -211,7 +211,7 @@ class BatchedSynthesizerDataModule(L.LightningDataModule):
         self.num_test = num_test
         self.seed = seed
         self.return_sound = return_sound
-        print(f"Num train {num_train}, num val {num_val}, num test {num_test}")
+        # print(f"Num train {num_train}, num val {num_val}, num test {num_test}")
 
     def train_dataloader(self):
         """
