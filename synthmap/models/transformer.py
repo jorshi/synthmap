@@ -171,7 +171,7 @@ class TransformerDecoder(torch.nn.Module):
                 # nn.init.orthogonal_(m.weight)
 
     def forward(self, x):
-        x = rearrange(x, "b f -> b 1 f")
+        x = rearrange(x, "b d -> b 1 d")
 
         pos_emb = repeat(self.pos_emb, "() n d -> b n d", b=x.shape[0])
 
