@@ -53,6 +53,10 @@ def vae_match_target():
     target = cli.config["target"]
     assert target is not None, "Target audio file must be provided"
 
+    # Device
+    accelerator = cli.config["trainer.accelerator"]
+    device = "cuda" if accelerator == "gpu" else "cpu"
+
     # Create Fitness functions
     mel_fitness = MultiScaleSpectralFitness(
         target, 48000, 48000, fft_sizes=[2048], scale="mel", n_bins=128
@@ -81,7 +85,7 @@ def vae_match_target():
         fitness_fns=[mel_fitness, stft_fitness, novelty],
         verbose=False,
         reset_on_epoch=False,
-        device="cuda",
+        device=device,
         return_evals=True,
     )
 

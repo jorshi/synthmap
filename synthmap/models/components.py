@@ -1,5 +1,7 @@
 """Contains components for building drumblender models.
 """
+import math
+
 import torch
 from einops import rearrange
 from einops import repeat
@@ -130,3 +132,21 @@ class AttentionPooling(nn.Module):
         else:
             attn = attn.squeeze(dim=0)
         return attn
+
+
+class ParameterScaler(nn.Module):
+    """
+    Scales a parameter to a range of [threshold, max_value] with a slope of exponent.
+    From DDSP TensorFlow implementation.
+    """
+
+    def __init__(
+        self, exponent: float = 10.0, max_value: float = 1.0, threshold: float = 1e-7
+    ):
+        super().__init__()
+        self.exponent = math.log(exponent)
+        self.max_value = max_value
+        self.threshold = threshold
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.max_value * torch.sigmoid(x) ** self.exponent + self.threshold
