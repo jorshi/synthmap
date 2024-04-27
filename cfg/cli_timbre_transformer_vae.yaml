@@ -1,0 +1,32 @@
+model:
+  class_path: synthmap.task.SynthMapTask
+  init_args:
+    param_encoder: models/param_encoder_transformer.yaml
+    param_decoder: models/param_decoder_transformer.yaml
+    bottleneck:
+      class_path: synthmap.models.autoencoder.GaussianVAE
+      init_args:
+        beta: 0.01
+    loss_fn: loss/mae_mse_loss.yaml
+    audio_regularizer: loss/timbre_regularizer.yaml
+    audio_regularizer_weight: 0.01
+optimizer:
+  class_path: torch.optim.Adam
+  init_args:
+    lr: 0.0001
+lr_scheduler:
+  class_path: lightning.pytorch.cli.ReduceLROnPlateau
+  init_args:
+    monitor: train/loss
+    factor: 0.5
+    patience: 10
+    verbose: true
+data: data/gpu_808.yaml
+trainer:
+  devices: 1
+  accelerator: gpu
+  max_epochs: 200
+  callbacks:
+  - class_path: lightning.pytorch.callbacks.LearningRateMonitor
+  - class_path: synthmap.callback.SaveParetoFrontParameters
+seed_everything: 3608013887

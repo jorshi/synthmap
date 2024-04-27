@@ -1,0 +1,5 @@
+class_path: synthmap.models.transformer.TransformerEncoder
+init_args:
+  input_dim: 128
+  output_dim: 32
+  clip_length: 14
